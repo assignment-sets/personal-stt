@@ -22,8 +22,8 @@ PersonalSTT is a dead-simple, ultra-lightweight background Speech-to-Text (STT) 
 Clone the repository and navigate to the project directory:
 
 ```bash
-git clone https://github.com/yourusername/personalSTT.git
-cd personalSTT
+git clone https://github.com/assignment-sets/personal-stt.git
+cd personal-stt
 ```
 
 ### 2. Run the Onboarding Script
