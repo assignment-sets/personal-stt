@@ -1,0 +1,18 @@
+[project]
+name = "personalstt"
+version = "0.1.0"
+description = "A lightweight personal Speech-to-Text daemon for Linux."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "groq>=1.4.0",
+    "pynput>=1.7.6",
+]
+
+[project.scripts]
+personalstt = "personalstt.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
