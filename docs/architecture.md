@@ -8,11 +8,11 @@ PersonalSTT is built on a client-server architecture using Unix Domain Sockets f
 
 ```mermaid
 graph TD
-    subgraph Client Space (CLI)
+    subgraph "Client Space (CLI)"
         Hotkey[Ubuntu OS Hotkey] -->|Triggers| CLI[cli.py / main.py]
     end
 
-    subgraph Daemon Space (Background Service)
+    subgraph "Daemon Space (Background Service)"
         Socket[Unix Domain Socket Server] -->|Dispatches Command| Daemon[daemon.py]
         Daemon -->|Controls| Recorder[recorder.py]
         Daemon -->|Triggers Beeps| Sound[sound.py]
@@ -20,7 +20,7 @@ graph TD
         Daemon -->|Pipes Output| Paster[paster.py]
     end
 
-    subgraph OS & External Hardware
+    subgraph "OS & External Hardware"
         Recorder -->|Spawns| arecord[ALSA arecord process]
         arecord -->|Writes WAV| TempDir[(/tmp/)]
         Sound -->|aplay -q| Speaker[System Speaker]
