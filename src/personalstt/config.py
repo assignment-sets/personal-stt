@@ -30,7 +30,7 @@ CONFIG_DIR = os.path.expanduser("~/.config/personalstt")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULT_CONFIG = {
-    "max_duration_sec": 240,
+    "max_duration_sec": 300,
     "groq_model": "whisper-large-v3-turbo",
     "api_retries": 3,
     "alsa_device": "default",

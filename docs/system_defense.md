@@ -18,7 +18,7 @@ PersonalSTT operates directly at the OS level (managing subprocesses, audio capt
 
 Leaving a microphone recording indefinitely is a significant privacy concern and can exhaust API quotas or crash filesystems.
 
-- **Daemon-Side Timer:** When a recording starts, the daemon registers a `threading.Timer` matching the configured `max_duration_sec` (default 240 seconds).
+- **Daemon-Side Timer:** When a recording starts, the daemon registers a `threading.Timer` matching the configured `max_duration_sec` (default 300 seconds).
 - **Automatic Cancellation:** If the user fails to issue a stop or cancel command before the timer expires, the timer fires the cancellation handler:
   1.  Issues `SIGKILL` to `arecord`.
   2.  Deletes the temporary WAV file.

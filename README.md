@@ -67,7 +67,7 @@ Configurations are stored in `~/.config/personalstt/config.json`. You can modify
 
 | Setting Key         | Default Value              | Type    | Description                                                                                                |
 | :------------------ | :------------------------- | :------ | :--------------------------------------------------------------------------------------------------------- |
-| `max_duration_sec`  | `240`                      | `int`   | Safety duration limit in seconds. Recording auto-cancels if it exceeds this threshold.                     |
+| `max_duration_sec`  | `300`                      | `int`   | Safety duration limit in seconds. Recording auto-cancels if it exceeds this threshold.                     |
 | `groq_model`        | `"whisper-large-v3-turbo"` | `str`   | Groq Whisper model used for STT inference.                                                                 |
 | `feedback_volume`   | `0.3`                      | `float` | Volume (`0.0` to `1.0`) of the feedback sound beeps. Changing this automatically regenerates sound assets. |
 | `alsa_device`       | `"default"`                | `str`   | ALSA recording microphone input device name (passed to `arecord -D`).                                      |

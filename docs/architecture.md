@@ -76,7 +76,7 @@ sequenceDiagram
     Socket->>Daemon: Acquire Lock & transition to RECORDING
     Daemon->>Daemon: Play start.wav (async) & notify "Listening"
     Daemon->>Recorder: Spawn 'arecord' subprocess to stream to /tmp/
-    Daemon->>Daemon: Start safety timer thread (240s)
+    Daemon->>Daemon: Start safety timer thread (300s)
     Daemon-->>Socket: Return "STARTED"
     Socket-->>User: Exit CLI client (Instant)
 

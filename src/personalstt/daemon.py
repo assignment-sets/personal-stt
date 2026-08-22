@@ -49,7 +49,7 @@ class RecordingDaemon:
 
             config = load_config()
             alsa_device = config.get("alsa_device", "default")
-            max_duration = config.get("max_duration_sec", 240)
+            max_duration = config.get("max_duration_sec", 300)
 
             self.state = "RECORDING"
             self.cancel_flag = False
@@ -82,7 +82,7 @@ class RecordingDaemon:
                 self.recording_start_time = None
 
             config = load_config()
-            max_duration = config.get("max_duration_sec", 240)
+            max_duration = config.get("max_duration_sec", 300)
 
             # Safety limit check: Discard if the actual duration exceeded limit
             if elapsed_time > (max_duration + 2.0):

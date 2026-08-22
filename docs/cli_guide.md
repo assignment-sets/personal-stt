@@ -94,7 +94,7 @@ Settings are stored in standard JSON format at `~/.config/personalstt/config.jso
 
 | Config Key          | Default Value              | Type    | Description                                                                                                                                            |
 | :------------------ | :------------------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `max_duration_sec`  | `240`                      | `int`   | Hard recording limit in seconds. Recording auto-cancels if it reaches this duration. Also rejects manual stops if the elapsed time exceeds this limit. |
+| `max_duration_sec`  | `300`                      | `int`   | Hard recording limit in seconds. Recording auto-cancels if it reaches this duration. Also rejects manual stops if the elapsed time exceeds this limit. |
 | `groq_model`        | `"whisper-large-v3-turbo"` | `str`   | The Groq Whisper STT model used for transcribing.                                                                                                      |
 | `api_retries`       | `3`                        | `int`   | Number of times to retry failed Groq API requests with exponential backoff.                                                                            |
 | `alsa_device`       | `"default"`                | `str`   | ALSA audio input device passed to `arecord -D` (e.g. `default` or a hardware microphone interface).                                                    |
