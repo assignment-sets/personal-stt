@@ -11,6 +11,16 @@ def parse_args():
         "--api-key",
         help="Groq API Key to configure. If omitted, you will be prompted interactively."
     )
+    parser.add_argument(
+        "--language",
+        default="en",
+        help="Audio spoken language code (default: en). Pass empty string '' for auto-detection."
+    )
+    parser.add_argument(
+        "--no-auto-paste",
+        action="store_true",
+        help="Disable automatic Ctrl+V paste simulation (copy to clipboard only)."
+    )
     return parser.parse_args()
 
 def check_system():
@@ -114,8 +124,46 @@ def configure_api_key(project_root, provided_key):
         print(f"Error: Failed to write credentials file: {e}")
         sys.exit(1)
 
+def configure_preferences(project_root, language_arg, no_auto_paste_arg):
+    print("\n=== Step 5: Dictation Preferences ===")
+    src_dir = os.path.join(project_root, "src")
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
+    try:
+        from personalstt.config import set_config_value, load_config
+        config = load_config()
+
+        # Handle language
+        selected_lang = language_arg
+        if selected_lang is None or selected_lang == "en":
+            user_input = input(f"Preferred transcription language [default: '{config.get('language', 'en')}']: ").strip()
+            if user_input:
+                selected_lang = user_input
+            else:
+                selected_lang = config.get("language", "en")
+
+        set_config_value("language", selected_lang)
+        print(f"✓ Language set to: '{selected_lang}'")
+
+        # Handle auto-paste
+        if no_auto_paste_arg:
+            set_config_value("auto_paste", False)
+            print("✓ Auto-paste: Disabled (copy-only)")
+        else:
+            default_paste = "Y" if config.get("auto_paste", True) else "N"
+            user_input = input(f"Automatically paste text at cursor after dictation? [Y/n, default: {default_paste}]: ").strip().lower()
+            if user_input in ("n", "no", "false"):
+                set_config_value("auto_paste", False)
+                print("✓ Auto-paste: Disabled (copy-only)")
+            else:
+                set_config_value("auto_paste", True)
+                print("✓ Auto-paste: Enabled (Ctrl+V simulation)")
+    except Exception as e:
+        print(f"Warning: Could not configure preferences: {e}")
+
 def register_daemon_service(project_root):
-    print("\n=== Step 5: Daemon Service Registration ===")
+    print("\n=== Step 6: Daemon Service Registration ===")
     python_bin = os.path.join(project_root, ".venv", "bin", "python")
     main_py = os.path.join(project_root, "main.py")
     
@@ -170,6 +218,7 @@ def main():
     install_system_dependencies()
     sync_python_environment(project_root)
     configure_api_key(project_root, args.api_key)
+    configure_preferences(project_root, args.language, args.no_auto_paste)
     register_daemon_service(project_root)
     print_post_install_guide(project_root)
 

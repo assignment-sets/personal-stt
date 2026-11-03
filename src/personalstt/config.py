@@ -113,7 +113,12 @@ DEFAULT_CONFIG = {
     "api_retries": 3,
     "alsa_device": "default",
     "feedback_volume": 0.3,
-    "notify_timeout_ms": 2000
+    "feedback_mode": "both",
+    "notify_timeout_ms": 2000,
+    "auto_dismiss_ms": 1200,
+    "language": "en",
+    "prompt": "",
+    "auto_paste": True
 }
 
 CONFIG_DESCRIPTIONS = {
@@ -122,7 +127,12 @@ CONFIG_DESCRIPTIONS = {
     "api_retries": "Number of times to retry Groq API requests on connection failure",
     "alsa_device": "The ALSA recording input device name (passed to arecord -D)",
     "feedback_volume": "Volume level (0.0 to 1.0) of the synthesized audio beeps",
-    "notify_timeout_ms": "Desktop notification duration in milliseconds"
+    "feedback_mode": "Feedback style: 'both' (audio & visual), 'audio_only', 'visual_only', or 'errors_only'",
+    "notify_timeout_ms": "Desktop notification duration in milliseconds",
+    "auto_dismiss_ms": "Duration in ms before 'Speech inserted!' notification auto-dismisses",
+    "language": "Spoken audio language code (e.g. 'en', 'es', or empty for auto-detect)",
+    "prompt": "Optional vocabulary hint or phrasing guidance passed to Groq Whisper",
+    "auto_paste": "Automatically simulate Ctrl+V to paste transcribed text (true/false)"
 }
 
 def load_config():
@@ -185,8 +195,12 @@ def set_config_value(key, value):
         if key == "feedback_volume" and not (0.0 <= casted_value <= 1.0):
             return False, "feedback_volume must be between 0.0 and 1.0"
         
+        # Validation for feedback_mode
+        if key == "feedback_mode" and casted_value not in ("both", "audio_only", "visual_only", "errors_only"):
+            return False, "feedback_mode must be one of: 'both', 'audio_only', 'visual_only', 'errors_only'"
+
         # Range checks for positive numbers
-        if key in ("max_duration_sec", "api_retries", "notify_timeout_ms") and casted_value <= 0:
+        if key in ("max_duration_sec", "api_retries", "notify_timeout_ms", "auto_dismiss_ms") and casted_value <= 0:
             return False, f"{key} must be a positive number greater than 0"
             
         config[key] = casted_value

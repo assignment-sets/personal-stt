@@ -46,14 +46,21 @@ chmod +x scripts/*.py
 
 ---
 
-## CLI Commands Reference
+## CLI Commands & Flags Reference
 
 All interactions with the background daemon can be done via the CLI. If you set up the suggested alias `pstt` during onboarding, you can run:
 
+### Standard Flags
+- **`pstt -h` / `pstt --help`**: Display available options and commands.
+- **`pstt -v` / `pstt --version`**: Print the current version.
+
+### Core Commands
 - **`pstt start`**: Starts voice recording.
 - **`pstt stop`**: Stops recording, submits audio to Groq Whisper, and pastes transcription at the cursor.
+- **`pstt stop -c` / `pstt stop --copy-only`**: Stops recording, transcribes audio, and copies to clipboard without simulating Ctrl+V.
 - **`pstt cancel`**: Cancels any current recording or transcription session.
 - **`pstt status`**: Prints diagnostic details about the daemon and the systemd service.
+- **`pstt logs [-f] [-n <lines>]`**: Views daemon background logs from systemd `journalctl`.
 - **`pstt restart`**: Restarts the background systemd user service.
 - **`pstt config list`**: Lists all configurable settings, current values, and descriptions.
 - **`pstt config set <key> <value>`**: Sets a configuration key to a new value.
@@ -68,7 +75,10 @@ Configurations are stored in `~/.config/personalstt/config.json`. You can modify
 | Setting Key         | Default Value              | Type    | Description                                                                                                |
 | :------------------ | :------------------------- | :------ | :--------------------------------------------------------------------------------------------------------- |
 | `max_duration_sec`  | `300`                      | `int`   | Safety duration limit in seconds. Recording auto-cancels if it exceeds this threshold.                     |
-| `groq_model`        | `"whisper-large-v3-turbo"` | `str`   | Groq Whisper model used for STT inference.                                                                 |
+| `groq_model`        | `"whisper-large-v3-turbo"` | `str`   | Groq Whisper model used for STT inference (`whisper-large-v3-turbo`, `whisper-large-v3`, etc.).            |
+| `language`          | `"en"`                     | `str`   | Audio language code (e.g. `en`, `es`, `fr`, or empty string `""` for Whisper auto-detection).              |
+| `prompt`            | `""`                       | `str`   | Optional domain vocabulary, technical jargon, or punctuation context passed to Groq Whisper.              |
+| `auto_paste`        | `true`                     | `bool`  | Whether to automatically simulate Ctrl+V to paste into the active window (`true`/`false`).                  |
 | `feedback_volume`   | `0.3`                      | `float` | Volume (`0.0` to `1.0`) of the feedback sound beeps. Changing this automatically regenerates sound assets. |
 | `alsa_device`       | `"default"`                | `str`   | ALSA recording microphone input device name (passed to `arecord -D`).                                      |
 | `api_retries`       | `3`                        | `int`   | Number of times to retry Groq API connections on failures.                                                 |

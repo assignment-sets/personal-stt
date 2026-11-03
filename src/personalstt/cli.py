@@ -116,46 +116,76 @@ WantedBy=default.target
     except Exception as e:
         print(f"Installation failed: {e}")
 
+__version__ = "0.1.0"
+
+def show_logs(args):
+    """Wraps journalctl to view logs from the systemd user service."""
+    cmd = ["journalctl", "--user", "-u", "personalstt.service"]
+    cmd.extend(args)
+    try:
+        subprocess.run(cmd)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        print(f"Failed to show logs: {e}")
+
 def print_help():
-    print("Usage: python main.py <command>")
+    print("Usage: pstt [options] <command> [args]")
+    print("\nOptions:")
+    print("  -h, --help       Show this help message and exit")
+    print("  -v, --version    Show PersonalSTT version and exit")
     print("\nAvailable commands:")
-    print("  start     - Start listening and recording audio")
-    print("  stop      - Stop recording and trigger Groq API transcription + paste")
-    print("  cancel    - Cancel recording or transcription")
-    print("  status    - Print daemon state and systemd service status")
-    print("  restart   - Restart the systemd background service")
-    print("  install   - Register and run the daemon as a systemd user service")
-    print("  config    - Manage configuration settings (list, get, set)")
-    print("  --daemon  - Run the daemon socket listener directly (used by systemd)")
+    print("  start            Start listening and recording audio")
+    print("  stop [-c]        Stop recording and transcribe (+ paste unless -c / --copy-only)")
+    print("  cancel           Cancel recording or transcription")
+    print("  status           Print daemon state and systemd service status")
+    print("  logs [-f] [-n N] View systemd background logs (supports journalctl options)")
+    print("  restart          Restart the systemd background service")
+    print("  install          Register and run the daemon as a systemd user service")
+    print("  config           Manage configuration settings (list, get, set)")
+    print("  --daemon         Run the daemon socket listener directly (used by systemd)")
 
 def main():
     if len(sys.argv) < 2:
         print_help()
-        sys.exit(1)
+        sys.exit(0)
         
     cmd = sys.argv[1].lower()
-    
-    if cmd == "--daemon":
+
+    if cmd in ("-h", "--help", "help"):
+        print_help()
+        sys.exit(0)
+    elif cmd in ("-v", "--version"):
+        print(f"PersonalSTT v{__version__}")
+        sys.exit(0)
+    elif cmd == "--daemon":
         from personalstt.daemon import RecordingDaemon
         daemon = RecordingDaemon()
         daemon.run()
     elif cmd == "start":
         send_command("start")
     elif cmd == "stop":
-        send_command("stop")
+        # Check for copy-only flags: -c, --copy-only, --no-paste
+        copy_only = any(arg in ("-c", "--copy-only", "--no-paste") for arg in sys.argv[2:])
+        send_command("stop:copy_only" if copy_only else "stop")
     elif cmd == "cancel":
         send_command("cancel")
     elif cmd == "status":
         print_status()
+    elif cmd == "logs":
+        show_logs(sys.argv[2:])
     elif cmd == "restart":
         restart_service()
     elif cmd == "install":
         install_service()
     elif cmd == "config":
-        if len(sys.argv) < 3:
+        if len(sys.argv) < 3 or sys.argv[2].lower() in ("-h", "--help", "help"):
             print("Usage: pstt config <action> [args]")
-            print("Actions: list, get <key>, set <key> <value>")
-            sys.exit(1)
+            print("\nActions:")
+            print("  list               List all configuration options and their values")
+            print("  get <key>          Get current value of a configuration key")
+            print("  set <key> <value>  Update a configuration key")
+            sys.exit(0 if len(sys.argv) >= 3 and sys.argv[2].lower() in ("-h", "--help", "help") else 1)
             
         action = sys.argv[2].lower()
         from personalstt.config import load_config, set_config_value, CONFIG_DESCRIPTIONS
@@ -165,7 +195,7 @@ def main():
             print("=== PersonalSTT Configuration Settings ===")
             for k, v in config.items():
                 desc = CONFIG_DESCRIPTIONS.get(k, "")
-                print(f"  {k:<20} = {v:<25} # {desc}")
+                print(f"  {k:<20} = {str(v):<25} # {desc}")
         elif action == "get":
             if len(sys.argv) < 4:
                 print("Usage: pstt config get <key>")
@@ -194,7 +224,7 @@ def main():
             print("Actions: list, get <key>, set <key> <value>")
             sys.exit(1)
     else:
-        print(f"Unknown command: {cmd}")
+        print(f"Unknown command or option: {cmd}")
         print_help()
         sys.exit(1)
 

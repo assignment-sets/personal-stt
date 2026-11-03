@@ -31,9 +31,13 @@ Map these custom keyboard shortcuts in **Ubuntu Settings -> Keyboard -> Custom S
 
 ---
 
-## 🛠️ CLI Commands Reference
+## 🛠️ CLI Commands & Options Reference
 
 All commands can be invoked using the `pstt` alias:
+
+### Standard Options
+- **`-h`, `--help`**: Print help and command usage summary.
+- **`-v`, `--version`**: Print the installed PersonalSTT version.
 
 ### 1. `pstt start`
 
@@ -42,12 +46,14 @@ Sends the `start` command to the running background daemon.
 - **State Change:** `IDLE` ➔ `RECORDING`
 - **Output:** Plays `start.wav` (high-pitch beep) and posts a desktop notification ("Listening...").
 
-### 2. `pstt stop`
+### 2. `pstt stop [-c | --copy-only]`
 
 Sends the `stop` command to the running background daemon.
 
 - **State Change:** `RECORDING` ➔ `TRANSCRIBING` ➔ `IDLE`
-- **Output:** Plays `stop.wav` (lower beep), queries the Groq API, copies the text, simulates `Ctrl+V` to insert the text, and plays `success.wav` (double beep) on completion.
+- **Flags:**
+  - `-c`, `--copy-only`: Only copy transcription to system clipboard without simulating `Ctrl+V`.
+- **Output:** Plays `stop.wav` (lower beep), queries Groq Whisper, copies text to clipboard, simulates `Ctrl+V` (if auto-paste is active and not copy-only), and plays `success.wav`.
 
 ### 3. `pstt cancel`
 
@@ -62,29 +68,37 @@ Displays diagnostic status of the daemon socket and the systemd user service.
 
 - **Output:** Prints state (`IDLE`, `RECORDING`, `TRANSCRIBING`) and indicates if the background daemon is healthy.
 
-### 5. `pstt restart`
+### 5. `pstt logs [-f] [-n <num>]`
+
+Displays output logs from the background daemon using systemd's `journalctl`.
+
+- **Flags:**
+  - `-f`, `--follow`: Stream logs in real time.
+  - `-n <num>`: Limit output to the last `<num>` lines (e.g. `pstt logs -n 50`).
+
+### 6. `pstt restart`
 
 Restarts the systemd user service.
 
 - **Command Executed:** `systemctl --user restart personalstt.service`
 
-### 6. `pstt install`
+### 7. `pstt install`
 
 Installs, registers, enables, and starts the background systemd service for the current user.
 
 - **Unit File Path:** `~/.config/systemd/user/personalstt.service`
 
-### 7. `--daemon`
+### 8. `--daemon`
 
 Runs the daemon socket server loop directly. This is the command executed in the background by the systemd service.
 
-### 8. `pstt config`
+### 9. `pstt config`
 
 Manages the application configuration settings.
 
 - **`pstt config list`**: Lists all configuration settings, current values, and descriptions.
 - **`pstt config get <key>`**: Prints the value of a specific key.
-- **`pstt config set <key> <value>`**: Updates a setting (validates the type and ranges, and dynamically notifies the daemon).
+- **`pstt config set <key> <value>`**: Updates a setting (validates the type and ranges).
 
 ---
 
@@ -95,8 +109,13 @@ Settings are stored in standard JSON format at `~/.config/personalstt/config.jso
 | Config Key          | Default Value              | Type    | Description                                                                                                                                            |
 | :------------------ | :------------------------- | :------ | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `max_duration_sec`  | `300`                      | `int`   | Hard recording limit in seconds. Recording auto-cancels if it reaches this duration. Also rejects manual stops if the elapsed time exceeds this limit. |
-| `groq_model`        | `"whisper-large-v3-turbo"` | `str`   | The Groq Whisper STT model used for transcribing.                                                                                                      |
+| `groq_model`        | `"whisper-large-v3-turbo"` | `str`   | The Groq Whisper STT model used for transcribing (`whisper-large-v3-turbo`, `whisper-large-v3`).                                                      |
+| `language`          | `"en"`                     | `str`   | Spoken audio language code (e.g. `en`, `es`, `fr`, or empty `""` for Whisper auto-detection). Setting this reduces Groq inference latency.          |
+| `prompt`            | `""`                       | `str`   | Optional domain vocabulary, technical jargon, or punctuation context passed to Groq Whisper.                                                          |
+| `auto_paste`        | `true`                     | `bool`  | Whether to automatically simulate Ctrl+V to paste into the active window (`true`/`false`).                                                             |
 | `api_retries`       | `3`                        | `int`   | Number of times to retry failed Groq API requests with exponential backoff.                                                                            |
 | `alsa_device`       | `"default"`                | `str`   | ALSA audio input device passed to `arecord -D` (e.g. `default` or a hardware microphone interface).                                                    |
+| `feedback_volume`   | `0.3`                      | `float` | Synthesized feedback audio cues volume level (`0.0` to `1.0`).                                                                                         |
+| `notify_timeout_ms` | `2000`                     | `int`   | Duration (in milliseconds) desktop notifications stay on screen.                                                                                       |
 | `feedback_volume`   | `0.3`                      | `float` | Volume (0.0 to 1.0) of feedback beeps. Adjusting this automatically regenerates the sound assets.                                                      |
 | `notify_timeout_ms` | `2000`                     | `int`   | Duration (in milliseconds) that desktop notifications stay visible.                                                                                    |

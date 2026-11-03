@@ -65,7 +65,7 @@ class RecordingDaemon:
             self.recorder.start_recording(TEMP_WAV_PATH, device=alsa_device)
             return "STARTED"
 
-    def handle_stop(self):
+    def handle_stop(self, copy_only=False):
         with self.lock:
             if self.state != "RECORDING":
                 print(f"Ignored stop command. State is currently {self.state}.")
@@ -104,7 +104,7 @@ class RecordingDaemon:
             if filepath:
                 # Dispatch transcription to a background thread to prevent blocking the IPC socket
                 threading.Thread(
-                    target=self._transcribe_thread, args=(filepath,), daemon=True
+                    target=self._transcribe_thread, args=(filepath, copy_only), daemon=True
                 ).start()
                 return "STOPPING"
             else:
@@ -154,17 +154,24 @@ class RecordingDaemon:
     def handle_status(self):
         return self.state
 
-    def _transcribe_thread(self, filepath):
+    def _transcribe_thread(self, filepath, copy_only=False):
         try:
             config = load_config()
             groq_model = config.get("groq_model", "whisper-large-v3-turbo")
             api_retries = config.get("api_retries", 3)
+            language = config.get("language") or None
+            prompt = config.get("prompt") or None
+            auto_paste = config.get("auto_paste", True)
             api_key = get_api_key()
 
             # Instantiate transcriber with the fresh API key from environment
             transcriber = Transcriber(api_key)
             text = transcriber.transcribe(
-                filepath, model=groq_model, max_retries=api_retries
+                filepath,
+                model=groq_model,
+                max_retries=api_retries,
+                language=language,
+                prompt=prompt,
             )
 
             with self.lock:
@@ -174,13 +181,18 @@ class RecordingDaemon:
 
                 if text and text.strip():
                     cleaned_text = text.strip()
-                    # Copy to X11 clipboard & paste
+                    # Copy to X11 clipboard
                     self.paster.copy(cleaned_text)
-                    self.paster.paste()
+
+                    # Only paste if not explicitly copy_only AND auto_paste is enabled
+                    should_paste = (not copy_only) and auto_paste
+                    if should_paste:
+                        self.paster.paste()
 
                     self.sound.play("success")
+                    status_text = "Speech inserted!" if should_paste else "Speech copied to clipboard!"
                     self.show_notification(
-                        "PersonalSTT", "Speech inserted!", "emblem-success"
+                        "PersonalSTT", status_text, "emblem-success"
                     )
                 else:
                     self.sound.play("error")
@@ -264,7 +276,9 @@ class RecordingDaemon:
                         if command == "start":
                             response = self.handle_start()
                         elif command == "stop":
-                            response = self.handle_stop()
+                            response = self.handle_stop(copy_only=False)
+                        elif command == "stop:copy_only":
+                            response = self.handle_stop(copy_only=True)
                         elif command == "cancel":
                             response = self.handle_cancel()
                         elif command == "status":
