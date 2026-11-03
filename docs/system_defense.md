@@ -47,3 +47,16 @@ If the main Python process crashes or gets killed, child processes (like `arecor
   - `groq.BadRequestError` ➔ Quota / Parameters issues.
   - `groq.APIConnectionError` ➔ Network drops.
 - **Clipboard Fallback Dump:** Standard Ubuntu notifications disappear quickly. To prevent "debugging in the dark", the daemon copies the **full raw traceback** and exception details to the system clipboard (`xclip`) on failure, and shows a persistent system notification (`-u critical`). You can immediately press `Ctrl+V` in any editor to see exactly why the call failed.
+
+---
+
+## 5. Local Credential Isolation & Permission Hardening
+
+API keys grant access to remote AI resources and must be shielded from unauthorized local access:
+- **Dedicated User Config Directory:** Credentials reside outside the repository in the user's isolated configuration folder (`~/.config/personalstt/credentials`). The directory is created with `0700` (`rwx------`) permissions so other non-root accounts cannot browse or list files.
+- **Strict POSIX Permissions (`0600`):** The credentials file is written with mode `0600` (`-rw-------`) using low-level `os.open` flags (`O_CREAT | O_WRONLY | O_TRUNC`), eliminating windows of loose default umask permissions.
+- **Self-Healing Permission Auditing:** When `get_api_key()` reads credentials (or a legacy `.env`), it audits the file permissions. If group or world access is detected, it automatically restricts permissions back to `0600` and issues a security notice.
+- **Resolution Order:** The key loader prioritizes:
+  1. Process environment variables (`GROQ_CONF` / `GROQ_API_KEY`)
+  2. Secure user credentials file (`~/.config/personalstt/credentials`)
+  3. Hardened project `.env` file (legacy fallback)

@@ -76,6 +76,16 @@ def remove_configurations_and_assets():
 def remove_credentials(project_root):
     print("\n=== Step 4: Deleting Credentials ===")
     
+    # 1. Remove secure user credentials file if config dir wasn't fully cleared
+    creds_path = os.path.expanduser("~/.config/personalstt/credentials")
+    if os.path.exists(creds_path):
+        try:
+            os.remove(creds_path)
+            print(f"Removed credentials file: {creds_path}")
+        except Exception as e:
+            print(f"Warning: Failed to remove {creds_path}: {e}")
+
+    # 2. Remove legacy .env in project root
     env_path = os.path.join(project_root, ".env")
     if os.path.exists(env_path):
         try:
@@ -84,8 +94,8 @@ def remove_credentials(project_root):
         except Exception as e:
             print(f"Warning: Failed to remove {env_path}: {e}")
     else:
-        print("No .env credentials file found.")
-    print("✓ API credential file removed.")
+        print("No legacy .env credentials file found.")
+    print("✓ API credentials removed.")
 
 def print_manual_cleanup_guide(project_root):
     print("\n" + "="*50)

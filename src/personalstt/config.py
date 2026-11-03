@@ -1,33 +1,111 @@
 import os
 import json
 
-def load_env(base_dir):
-    """Parses a local .env file in the project folder to populate environment variables."""
-    env_path = os.path.join(base_dir, ".env")
-    if os.path.exists(env_path):
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    if "=" in line:
-                        key, val = line.split("=", 1)
-                        os.environ[key.strip()] = val.strip().strip('"').strip("'")
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# API Configurations
-def get_api_key():
-    load_env(PROJECT_ROOT)
-    return os.environ.get("GROQ_CONF") or os.environ.get("GROQ_API_KEY")
-
 # IPC & File Path Configurations
 SOCKET_PATH = "/tmp/personalstt.socket"
 TEMP_WAV_PATH = "/tmp/personalstt_recording.wav"
 SOUND_DIR = os.path.expanduser("~/.local/share/personalstt/sounds")
 
-# Config File Configurations
+# Config & Credential File Configurations
 CONFIG_DIR = os.path.expanduser("~/.config/personalstt")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
+CREDENTIALS_FILE = os.path.join(CONFIG_DIR, "credentials")
+
+
+def ensure_secure_permissions(filepath, expected_mode=0o600):
+    """
+    Checks that the file does not have loose permissions (group/world accessible).
+    If it does, automatically restricts it to expected_mode (default: 0600) and prints a warning.
+    """
+    try:
+        current_mode = os.stat(filepath).st_mode & 0o777
+        # Check if group or other has any permissions (read, write, or execute)
+        if current_mode & 0o077 != 0:
+            print(f"Security Notice: File '{filepath}' had loose permissions ({oct(current_mode)}). Restricting to {oct(expected_mode)}.")
+            os.chmod(filepath, expected_mode)
+    except Exception as e:
+        print(f"Warning: Could not check or enforce secure permissions on '{filepath}': {e}")
+
+
+def secure_write_credentials(api_key, path=CREDENTIALS_FILE):
+    """
+    Atomically writes the API key into a dedicated credentials file with strict 0600 permissions
+    inside an isolated directory with 0700 permissions.
+    """
+    dir_path = os.path.dirname(os.path.abspath(path))
+    os.makedirs(dir_path, mode=0o700, exist_ok=True)
+    # Ensure directory permissions are 0700 even if directory already existed
+    try:
+        if (os.stat(dir_path).st_mode & 0o777) != 0o700:
+            os.chmod(dir_path, 0o700)
+    except Exception:
+        pass
+
+    content = f'GROQ_CONF="{api_key}"\n'
+    # Use low-level open with O_CREAT | O_WRONLY | O_TRUNC and mode 0600
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with open(fd, "w", encoding="utf-8", closefd=True) as f:
+            f.write(content)
+        # Explicit chmod call to guarantee permissions regardless of umask
+        os.chmod(path, 0o600)
+        return True
+    except Exception as e:
+        print(f"Error securely writing credentials: {e}")
+        return False
+
+
+def parse_key_value_file(filepath):
+    """Parses key=value lines from a file and returns a dictionary."""
+    data = {}
+    if os.path.exists(filepath):
+        ensure_secure_permissions(filepath, expected_mode=0o600)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        if "=" in line:
+                            key, val = line.split("=", 1)
+                            data[key.strip()] = val.strip().strip('"').strip("'")
+        except Exception as e:
+            print(f"Warning: Could not read credentials file '{filepath}': {e}")
+    return data
+
+
+def load_env(base_dir):
+    """Parses a local .env file in the project folder to populate environment variables."""
+    env_path = os.path.join(base_dir, ".env")
+    env_data = parse_key_value_file(env_path)
+    for key, val in env_data.items():
+        os.environ[key] = val
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+# API Configurations
+def get_api_key():
+    """
+    Retrieves the Groq API key according to priority:
+    1. Environment variables GROQ_CONF or GROQ_API_KEY
+    2. Secure user credentials file: ~/.config/personalstt/credentials
+    3. Legacy project root .env file
+    """
+    key = os.environ.get("GROQ_CONF") or os.environ.get("GROQ_API_KEY")
+    if key:
+        return key
+
+    # Check ~/.config/personalstt/credentials
+    if os.path.exists(CREDENTIALS_FILE):
+        creds = parse_key_value_file(CREDENTIALS_FILE)
+        key = creds.get("GROQ_CONF") or creds.get("GROQ_API_KEY")
+        if key:
+            return key
+
+    # Check legacy .env in project root
+    load_env(PROJECT_ROOT)
+    return os.environ.get("GROQ_CONF") or os.environ.get("GROQ_API_KEY")
 
 DEFAULT_CONFIG = {
     "max_duration_sec": 300,

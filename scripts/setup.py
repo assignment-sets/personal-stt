@@ -95,13 +95,23 @@ def configure_api_key(project_root, provided_key):
         while not api_key:
             api_key = input("API Key cannot be empty. Please enter your key: ").strip()
             
-    env_path = os.path.join(project_root, ".env")
+    # Add src to sys.path to import personalstt config utilities
+    src_dir = os.path.join(project_root, "src")
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
     try:
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.write(f'GROQ_CONF="{api_key}"\n')
-        print(f"✓ Environment variables written to: {env_path}")
+        from personalstt.config import secure_write_credentials, CREDENTIALS_FILE, ensure_secure_permissions
+        if not secure_write_credentials(api_key):
+            raise RuntimeError("secure_write_credentials failed")
+        print(f"✓ API credentials securely written to: {CREDENTIALS_FILE} (permissions: 0600)")
+
+        # If a legacy .env exists, ensure its permissions are also tightened
+        legacy_env = os.path.join(project_root, ".env")
+        if os.path.exists(legacy_env):
+            ensure_secure_permissions(legacy_env, expected_mode=0o600)
     except Exception as e:
-        print(f"Error: Failed to write .env file: {e}")
+        print(f"Error: Failed to write credentials file: {e}")
         sys.exit(1)
 
 def register_daemon_service(project_root):

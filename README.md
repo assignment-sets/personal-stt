@@ -40,7 +40,7 @@ chmod +x scripts/*.py
 - Verifies that your environment runs under Linux/X11.
 - Checks for and installs missing system dependencies via `apt-get` (`ffmpeg`, `alsa-utils`, `libnotify-bin`, `xclip`).
 - Configures your python virtual environment using `uv sync`.
-- Prompts you for your Groq API Key and writes it to a local `.env` file.
+- Prompts you for your Groq API Key and securely saves it to `~/.config/personalstt/credentials` with strict `0600` permissions (owner-only read/write).
 - Registers and starts the systemd user daemon.
 - Prints out exact copy-paste instructions to map global keyboard shortcuts in Ubuntu.
 
