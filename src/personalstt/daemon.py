@@ -20,21 +20,84 @@ class RecordingDaemon:
         self.cancel_flag = False
         self.recording_timer = None
         self.recording_start_time = None
+        self.last_notification_id = None
         self.lock = threading.Lock()
 
-    def show_notification(self, title, message, icon="media-record", urgency="normal"):
-        """Displays a desktop notification using notify-send."""
+    def show_notification(
+        self,
+        title,
+        message,
+        icon="media-record",
+        urgency="normal",
+        replace=True,
+        transient=True,
+        timeout_ms=None,
+    ):
+        """
+        Displays an in-place updating desktop notification using notify-send.
+        Replaces previous notification ID when available, suppresses history archiving via transient hints,
+        and respects configured feedback_mode.
+        """
         config = load_config()
-        timeout_ms = config.get("notify_timeout_ms", 2000)
+        feedback_mode = config.get("feedback_mode", "both")
+
+        # In audio_only or errors_only mode, suppress non-critical informational toasts
+        if feedback_mode in ("audio_only", "errors_only") and urgency != "critical":
+            return None
+
+        if timeout_ms is None:
+            timeout_ms = config.get("notify_timeout_ms", 2000)
+
         try:
-            cmd = ["notify-send", "-u", urgency]
+            cmd = ["notify-send", "-p", "-u", urgency]
+            if transient:
+                cmd.extend(["-h", "int:transient:1"])
+            if replace and self.last_notification_id:
+                cmd.extend(["-r", str(self.last_notification_id)])
             if urgency != "critical":
                 cmd.extend(["-t", str(timeout_ms)])
             cmd.extend([f"--icon={icon}", title, message])
 
-            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            res = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=1.5,
+            )
+            out = res.stdout.strip()
+            if out.isdigit():
+                self.last_notification_id = int(out)
+                return self.last_notification_id
         except Exception as e:
             print(f"Failed to show notification: {e}")
+        return None
+
+    def dismiss_notification(self):
+        """Dismisses the active notification via DBus."""
+        if self.last_notification_id:
+            try:
+                subprocess.run(
+                    [
+                        "gdbus",
+                        "call",
+                        "--session",
+                        "--dest",
+                        "org.freedesktop.Notifications",
+                        "--object-path",
+                        "/org/freedesktop/Notifications",
+                        "--method",
+                        "org.freedesktop.Notifications.CloseNotification",
+                        str(self.last_notification_id),
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                    timeout=1.0,
+                )
+            except Exception:
+                pass
+            self.last_notification_id = None
 
     def _handle_timeout(self):
         """Automatically runs when safety timeout is reached."""
@@ -61,7 +124,9 @@ class RecordingDaemon:
             self.recording_timer.start()
 
             self.sound.play("start")
-            self.show_notification("PersonalSTT", "Listening...", "media-record")
+            # Clear previous notification ID for a fresh dictation session
+            self.last_notification_id = None
+            self.show_notification("PersonalSTT", "Listening...", "media-record", replace=False)
             self.recorder.start_recording(TEMP_WAV_PATH, device=alsa_device)
             return "STARTED"
 
@@ -96,7 +161,7 @@ class RecordingDaemon:
 
             self.state = "TRANSCRIBING"
             self.sound.play("stop")
-            self.show_notification("PersonalSTT", "Transcribing...", "document-send")
+            self.show_notification("PersonalSTT", "Transcribing...", "document-send", replace=True)
 
             # Gracefully stop recorder and retrieve filepath
             filepath = self.recorder.stop_recording()
@@ -133,11 +198,15 @@ class RecordingDaemon:
                         "PersonalSTT",
                         "Auto-cancelled: exceeded limit",
                         "dialog-warning",
+                        replace=True,
                     )
                     return "AUTO_CANCELLED"
                 else:
                     self.show_notification(
-                        "PersonalSTT", "Recording cancelled", "dialog-warning"
+                        "PersonalSTT",
+                        "Recording cancelled",
+                        "dialog-warning",
+                        replace=True,
                     )
                     return "CANCELLED_RECORDING"
             elif self.state == "TRANSCRIBING":
@@ -145,7 +214,10 @@ class RecordingDaemon:
                 self.state = "IDLE"
                 self.sound.play("error")
                 self.show_notification(
-                    "PersonalSTT", "Transcription cancelled", "dialog-warning"
+                    "PersonalSTT",
+                    "Transcription cancelled",
+                    "dialog-warning",
+                    replace=True,
                 )
                 return "CANCELLED_TRANSCRIBING"
             else:
@@ -191,13 +263,18 @@ class RecordingDaemon:
 
                     self.sound.play("success")
                     status_text = "Speech inserted!" if should_paste else "Speech copied to clipboard!"
+                    auto_dismiss_ms = config.get("auto_dismiss_ms", 1200)
                     self.show_notification(
-                        "PersonalSTT", status_text, "emblem-success"
+                        "PersonalSTT",
+                        status_text,
+                        "emblem-success",
+                        replace=True,
+                        timeout_ms=auto_dismiss_ms,
                     )
                 else:
                     self.sound.play("error")
                     self.show_notification(
-                        "PersonalSTT", "No speech detected", "dialog-warning"
+                        "PersonalSTT", "No speech detected", "dialog-warning", replace=True
                     )
         except Exception as e:
             with self.lock:

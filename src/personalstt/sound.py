@@ -80,7 +80,14 @@ class SoundEngine:
                 wav_file.writeframesraw(struct.pack("<h", value))
 
     def play(self, name):
-        """Asynchronously plays a sound by name. Regenerates files if missing."""
+        """Asynchronously plays a sound by name if feedback_mode allows it. Regenerates files if missing."""
+        config = load_config()
+        feedback_mode = config.get("feedback_mode", "both")
+
+        # In 'visual_only' or 'errors_only', suppress non-error audio chimes
+        if feedback_mode in ("visual_only", "errors_only") and name != "error":
+            return
+
         path = os.path.join(self.sound_dir, f"{name}.wav")
         if not os.path.exists(path):
             self._ensure_sounds_exist()
